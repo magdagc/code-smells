@@ -1,113 +1,110 @@
 // ===================================================================
-// PARTE 1: DEFINICIONES DE CLASES CON "SMELLS"
+// PARTE 1: NUEVA ESTRUCTURA DE CLASES REFACTORIZADA
 // ===================================================================
 
-// Una clase simple para representar un Pedido
+// --- SOLUCIÓN AL "GRUPO DE DATOS" (Data Clump) ---
+// Creamos una clase específica para manejar el concepto de Dirección.
+// Ahora, en lugar de pasar un montón de strings sueltos, pasaremos un solo objeto Address.
+class Address {
+  constructor(
+    public street: string,
+    public city: string,
+    public state: string,
+    public zipCode: string
+  ) {}
+
+  /**
+   * --- SOLUCIÓN A LA "CIRUGÍA DE ESCOPETA" (Shotgun Surgery) ---
+   * Toda la lógica de validación de una dirección ahora está en un solo lugar.
+   * Si las reglas de negocio cambian, solo tenemos que modificar este método.
+   * ¡No más disparos a múltiples clases!
+   */
+  public isValid(): boolean {
+    if (this.street.trim() === '') {
+      console.error("Error de Dirección: La calle no puede estar vacía.");
+      return false;
+    }
+    if (this.zipCode.length < 3) {
+      console.error("Error de Dirección: El código postal parece inválido.");
+      return false;
+    }
+    // ... aquí irían todas las demás validaciones de dirección ...
+    return true;
+  }
+
+  // Un método de ayuda para obtener la dirección formateada.
+  // De nuevo, la responsabilidad está centralizada.
+  public getFullAddressString(): string {
+    return `${this.street}, ${this.city}, ${this.state} ${this.zipCode}`;
+  }
+}
+
+// La clase Order no cambia.
 class Order {
   constructor(public orderId: number, public totalAmount: number) {}
 }
 
-// Una clase para representar al Cliente
+// La clase Customer se simplifica. Ya no necesita validar direcciones.
 class Customer {
   constructor(public customerId: number, public name: string) {}
-
-  // Este método valida la dirección del cliente.
-  // Si la lógica de validación de la calle o ciudad cambia,
-  // habría que modificar este método.
-  public validateAddress(street: string, city: string, zipCode: string): boolean {
-    if (zipCode.length < 3) {
-      console.error("Error de Cliente: El código postal parece inválido.");
-      return false;
-    }
-    // ... más validaciones de dirección ...
-    return true;
-  }
+  // El método validateAddress() fue eliminado de aquí. ¡Adiós!
 }
 
-// La clase principal que procesa los pedidos y contiene los smells
+// La clase OrderProcessor ahora es mucho más limpia y simple.
 class OrderProcessor {
   /**
-   * --- SMELL 1: GRUPOS DE DATOS (Data Clumps) ---
-   * ¿Notan algo raro en los parámetros de este método?
-   * `street`, `city`, `state`, y `zipCode` son un "montoncito de datos"
-   * que siempre van juntos. Representan un concepto: una Dirección.
-   * Pasarlos como parámetros individuales es engorroso y propenso a errores.
+   * ¡Miren qué limpia quedó la firma de este método!
+   * Ahora solo recibe un objeto Address, en lugar de un montón de strings.
    */
   public shipOrder(
     order: Order,
     customer: Customer,
-    street: string,
-    city: string,
-    state: string,
-    zipCode: string
+    shippingAddress: Address
   ): void {
     console.log(`\nProcesando envío para el pedido #${order.orderId}...`);
 
-    /**
-     * --- SMELL 2: CIRUGÍA DE ESCOPETA (Shotgun Surgery) ---
-     * Para enviar un pedido, esta clase necesita validar la dirección.
-     * Pero la lógica de validación está repartida. Una parte está acá
-     * y otra parte está en la clase `Customer`.
-     *
-     * IMAGINEN ESTO: Si la regla de negocio para validar una calle cambia,
-     * tendríamos que modificar el código AQUÍ y también en el método
-     * `validateAddress` de la clase `Customer`.
-     *
-     * Un solo cambio conceptual ("validar dirección") nos obliga a "disparar"
-     * a múltiples clases. Eso es Cirugía de Escopeta.
-     */
-    if (street.trim() === '') {
-      console.error("Error de Procesador: La calle no puede estar vacía.");
-      return;
-    }
-    // Llama a la otra parte de la validación en la otra clase
-    if (!customer.validateAddress(street, city, zipCode)) {
-      console.error("Error de Procesador: La dirección del cliente es inválida.");
+    // La validación ahora es una simple llamada a un método.
+    // OrderProcessor ya no se preocupa por CÓMO se valida una dirección.
+    if (!shippingAddress.isValid()) {
+      console.error("Error de Procesador: La dirección de envío es inválida.");
       return;
     }
 
-    console.log(`Enviando a: ${street}, ${city}, ${state} ${zipCode}`);
+    console.log(`Enviando a: ${shippingAddress.getFullAddressString()}`);
     console.log("¡Pedido enviado con éxito!");
   }
 }
 
 // ===================================================================
-// PARTE 2: EJECUCIÓN DEL CÓDIGO CON "SMELLS"
+// PARTE 2: EJECUCIÓN DEL CÓDIGO REFACTORIZADO
 // ===================================================================
 
-console.log("--- Iniciando demo de 'Los que duelen en el mantenimiento' ---");
+console.log("--- Iniciando demo del código REFACTORIZADO ---");
 
 // Creamos nuestras instancias
 const processor = new OrderProcessor();
 const customer = new Customer(101, 'Constructora S.A.');
 const order = new Order(2025, 45000);
 
-// --- El "Data Clump" en acción ---
-// Miren qué feo es llamar al método con todos estos parámetros sueltos.
-// Es fácil equivocarse en el orden.
-const shippingStreet = 'Av. Siempre Viva 742';
-const shippingCity = 'Springfield';
-const shippingState = 'Provincia X';
-const shippingZipCode = 'B1675';
-
-processor.shipOrder(
-  order,
-  customer,
-  shippingStreet,
-  shippingCity,
-  shippingState,
-  shippingZipCode
+// Ahora creamos un objeto Address, que es mucho más semántico y seguro.
+const shippingAddress = new Address(
+  'Av. Siempre Viva 742',
+  'Springfield',
+  'Provincia X',
+  'B1675'
 );
 
-// Ejemplo con una dirección inválida para ver la "Cirugía de Escopeta"
-const invalidZipCode = 'AB';
-processor.shipOrder(
-  new Order(2026, 1500),
-  customer,
+// La llamada al método ahora es mucho más limpia y legible.
+processor.shipOrder(order, customer, shippingAddress);
+
+// Ejemplo con una dirección inválida
+const invalidAddress = new Address(
   'Otra Calle 123',
   'Otra Ciudad',
   'Provincia Y',
-  invalidZipCode
+  'AB' // Código postal inválido
 );
+processor.shipOrder(new Order(2026, 1500), customer, invalidAddress);
 
 console.log("\n--- Fin de la demo ---");
+

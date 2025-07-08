@@ -1,8 +1,7 @@
 // ===================================================================
-// PARTE 1: DEFINICIONES (Interfaces y Clases)
+// PARTE 1: DEFINICIONES DE CLASES REFACTORIZADAS
 // ===================================================================
 
-// Para que el ejemplo funcione, definimos un tipo simple para el Usuario
 interface User {
   id: number;
   name: string;
@@ -11,80 +10,92 @@ interface User {
 }
 
 class UserManager {
-
-  // --- SMELL 3: CÓDIGO MUERTO (Dead Code) ---
-  private creationDate = new Date();
+  // --- SOLUCIÓN AL CÓDIGO MUERTO ---
+  // El campo `creationDate` fue eliminado. No se usaba.
 
   /**
-   * --- SMELL 2: MÉTODO LARGO (Long Method) ---
+   * --- SOLUCIÓN AL MÉTODO LARGO ---
+   * El método original fue descompuesto en varias funciones más pequeñas.
+   * Ahora, `generateActiveUsersReport` solo coordina los pasos,
+   * haciendo que su propósito sea mucho más claro.
    */
   public generateActiveUsersReport(users: User[]): void {
-    console.log('--- Iniciando la generación del reporte ---');
+    this.printReportHeader();
 
-    // 1. Filtrar usuarios activos
     const activeUsers = users.filter(user => user.isActive);
     console.log(`Se encontraron ${activeUsers.length} usuarios activos.`);
 
-    // --- SMELL 3: CÓDIGO MUERTO (Dead Code) ---
-    let reportHasData = false;
-
-    // 2. Procesar y mostrar cada usuario activo
     console.log('--- REPORTE DE USUARIOS ---');
     for (const user of activeUsers) {
-      
-      // --- SMELL 1: CÓDIGO DUPLICADO (Duplicate Code) ---
-      if (!user.name || user.name.trim() === '') {
-        console.log(`ADVERTENCIA: Usuario con ID ${user.id} tiene nombre inválido.`);
-        continue;
-      }
-      if (!user.email || !user.email.includes('@')) {
-        console.log(`ADVERTENCIA: Usuario con ID ${user.id} tiene email inválido.`);
-        continue;
-      }
-      // --- Fin del bloque duplicado ---
-
-      const reportLine = `  - ID: ${user.id}, Nombre: ${user.name}, Email: ${user.email}`;
-      console.log(reportLine);
-      reportHasData = true; 
+      this.processUserForReport(user);
     }
 
-    this.logReportGeneration('ADMIN');
-
-    console.log('--- Fin del reporte ---');
+    this.printReportFooter();
   }
 
-  public registerNewUser(name: string, email: string): boolean {
-    // --- SMELL 1: CÓDIGO DUPLICADO (Duplicate Code) ---
+  /**
+   * --- SOLUCIÓN AL CÓDIGO DUPLICADO ---
+   * Creamos un único método privado que contiene la lógica de validación.
+   * Ahora, tanto el reporte como el registro de usuarios llaman a este método.
+   * Si la regla de validación cambia, solo la modificamos en un lugar.
+   */
+  private isUserValid(name: string, email: string): boolean {
     if (!name || name.trim() === '') {
-      console.log('Error: El nombre es requerido.');
       return false;
     }
     if (!email || !email.includes('@')) {
-      console.log('Error: El formato de email es inválido.');
       return false;
     }
-    // --- Fin del bloque duplicado ---
-
-    console.log(`Usuario "${name}" registrado correctamente.`);
     return true;
   }
 
-  // --- SMELL 3: CÓDIGO MUERTO (Dead Code) ---
-  private logReportGeneration(userType: string): void {
+  public registerNewUser(name: string, email: string): boolean {
+    if (!this.isUserValid(name, email)) {
+      console.log('Error: Los datos del usuario son inválidos.');
+      return false;
+    }
+
+    console.log(`Usuario "${name}" registrado correctamente.`);
+    // ...lógica para guardar en base de datos...
+    return true;
+  }
+
+  // --- Métodos extraídos para mejorar la legibilidad ---
+
+  private processUserForReport(user: User): void {
+    if (!this.isUserValid(user.name, user.email)) {
+      console.log(`ADVERTENCIA: Usuario con ID ${user.id} tiene datos inválidos.`);
+      return;
+    }
+    const reportLine = `  - ID: ${user.id}, Nombre: ${user.name}, Email: ${user.email}`;
+    console.log(reportLine);
+  }
+
+  private printReportHeader(): void {
+    console.log('--- Iniciando la generación del reporte ---');
+  }
+
+  private printReportFooter(): void {
+    // --- SOLUCIÓN AL CÓDIGO MUERTO ---
+    // El parámetro `userType` fue eliminado de `logReportGeneration`
+    // porque no se utilizaba. Ahora el método se llama `logReportGeneration`.
+    this.logReportGeneration();
+    console.log('--- Fin del reporte ---');
+  }
+
+  private logReportGeneration(): void {
     console.log(`El reporte fue generado el ${new Date().toLocaleDateString()}`);
   }
 
-  // --- SMELL 3: CÓDIGO MUERTO (Dead Code) ---
-  private archiveOldReports(): void {
-    console.log('Archivando reportes viejos...');
-  }
+  // --- SOLUCIÓN AL CÓDIGO MUERTO ---
+  // El método `archiveOldReports` fue eliminado por completo.
 }
 
 // ===================================================================
-// PARTE 2: EJECUCIÓN (El bloque que efectivamente corre)
+// PARTE 2: EJECUCIÓN DEL CÓDIGO REFACTORIZADO
 // ===================================================================
 
-console.log("Iniciando el script de demostración...");
+console.log("Iniciando el script de demostración refactorizado...");
 
 const userManager = new UserManager();
 const misUsuarios: User[] = [
@@ -97,3 +108,4 @@ const misUsuarios: User[] = [
 userManager.generateActiveUsersReport(misUsuarios);
 
 console.log("Script de demostración finalizado.");
+

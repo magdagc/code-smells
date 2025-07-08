@@ -1,96 +1,97 @@
 // ===================================================================
-// PARTE 1: DEFINICIONES DE NUESTRAS CLASES BASE
+// PARTE 1: NUEVA ESTRUCTURA DE CLASES REFACTORIZADA
 // ===================================================================
 
-// Definimos los tipos de empleados que manejamos para tener algo de type-safety.
-type EmployeeType = 'manager' | 'engineer' | 'intern';
+// Creamos una clase base abstracta que define el "contrato" para todos los empleados.
+// Obliga a que cada tipo de empleado implemente su propio cálculo de bono.
+abstract class Employee {
+  constructor(public name: string, public salary: number) {}
 
-// Nuestra clase principal que solo contiene datos.
-class Employee {
+  /**
+   * --- SOLUCIÓN AL "ABUSO DE CONDICIONALES" ---
+   * Este método es abstracto. Forzamos a que cada subclase defina su propia
+   * lógica para calcular el bono. Así, si mañana creamos un nuevo rol,
+   * TypeScript nos obligará a implementar este método, y no tendremos que
+   * modificar ningún switch existente.
+   */
+  abstract calculateBonus(): number;
+
+  /**
+   * --- SOLUCIÓN A LA "ENVIDIA DE FUNCIONALIDAD" ---
+   * La lógica para generar el reporte ahora vive DENTRO de la clase Employee.
+   * Ya no hay una clase externa "envidiosa" de sus datos. Este método
+   * puede ser extendido por las subclases si necesitan agregar información.
+   */
+  public getReportLine(): string {
+    return `REPORTE: ${this.name} (${this.constructor.name}) - Salario: $${this.salary}`;
+  }
+}
+
+// Creamos clases específicas para cada rol, que heredan de Employee.
+
+class Manager extends Employee {
   constructor(
-    public name: string,
-    public type: EmployeeType,
-    public salary: number,
-    // Propiedades que solo aplican a ciertos roles:
-    public projectsManaged?: string[]
-  ) {}
-}
+    name: string,
+    salary: number,
+    public projectsManaged: string[]
+  ) {
+    super(name, salary);
+  }
 
-// ===================================================================
-// PARTE 2: LAS CLASES CON LOS "CODE SMELLS"
-// ===================================================================
+  // Implementación específica para el Manager
+  public calculateBonus(): number {
+    return this.salary * 0.2;
+  }
 
-class BonusCalculator {
-  /**
-   * --- SMELL 1: ABUSO DE CONDICIONALES (Switch Statements) ---
-   * Este método usa un `switch` para cambiar su comportamiento según el tipo de empleado.
-   * El problema: si mañana agregamos un nuevo rol (ej: 'designer'), estamos OBLIGADOS
-   * a venir y modificar este switch. La clase no está "cerrada a la modificación".
-   * Esto viola el Principio de Abierto/Cerrado.
-   */
-  public calculateBonus(employee: Employee): number {
-    console.log(`Calculando bono para ${employee.name}...`);
-    switch (employee.type) {
-      case 'manager':
-        return employee.salary * 0.2;
-      case 'engineer':
-        return employee.salary * 0.1;
-      case 'intern':
-        return 500; // Los pasantes reciben un bono fijo
-      default:
-        // ¿Qué pasa si el tipo es nuevo y no lo agregamos acá? ¡Error!
-        return 0;
-    }
+  // Sobrescribimos el método del padre para agregar más información
+  public getReportLine(): string {
+    const baseReport = super.getReportLine(); // Reutilizamos la lógica base
+    return `${baseReport} | Proyectos: ${this.projectsManaged.length}`;
   }
 }
 
-class ReportGenerator {
-  /**
-   * --- SMELL 2: ENVIDIA DE FUNCIONALIDAD (Feature Envy) ---
-   * Este método está "envidioso" de la clase `Employee`.
-   * Para generar el reporte, le pide a `Employee` un montón de sus datos
-   * (name, type, salary, projectsManaged) y arma la lógica acá afuera.
-   *
-   * Este método parece más interesado en los datos de `Employee` que en los de su propia clase.
-   * Probablemente, toda esta lógica de "describirse a sí mismo" debería estar
-   * DENTRO de la clase `Employee` en un método como `getReportLine()`.
-   */
-  public generateReportLine(employee: Employee): string {
-    let reportLine = `REPORTE: ${employee.name} (${employee.type}) - Salario: $${employee.salary}`;
-
-    // La envidia continúa: necesita saber detalles internos para agregar más datos.
-    if (employee.type === 'manager' && employee.projectsManaged) {
-      reportLine += ` | Proyectos: ${employee.projectsManaged.length}`;
-    }
-
-    return reportLine;
+class Engineer extends Employee {
+  // Implementación específica para el Engineer
+  public calculateBonus(): number {
+    return this.salary * 0.1;
   }
 }
 
+class Intern extends Employee {
+  // Implementación específica para el Intern
+  public calculateBonus(): number {
+    return 500; // Bono fijo
+  }
+}
+
+
 // ===================================================================
-// PARTE 3: EJECUCIÓN DEL CÓDIGO CON SMELLS
+// PARTE 2: EJECUCIÓN DEL CÓDIGO REFACTORIZADO
 // ===================================================================
+// ¡Notá cómo las clases BonusCalculator y ReportGenerator ya no existen!
+// La lógica ahora está donde debe estar, y el código es más limpio.
 
-console.log("--- Iniciando demo de 'Cimientos Raros' ---");
+console.log("--- Iniciando demo de código REFACTORIZADO ---");
 
-// Creamos nuestras clases "con olor"
-const bonusCalculator = new BonusCalculator();
-const reportGenerator = new ReportGenerator();
-
-// Creamos una lista de empleados de distintos tipos
+// Creamos una lista de empleados usando nuestras nuevas clases específicas.
+// El tipo de empleado ahora está definido por la clase que instanciamos.
 const employees: Employee[] = [
-  new Employee('Ana', 'manager', 5000, ['Proyecto Phoenix', 'Proyecto Hydra']),
-  new Employee('Juan', 'engineer', 3000),
-  new Employee('Lucía', 'intern', 1000),
+  new Manager('Ana', 5000, ['Proyecto Phoenix', 'Proyecto Hydra']),
+  new Engineer('Juan', 3000),
+  new Intern('Lucía', 1000),
+  // Si quisiéramos agregar un nuevo rol, solo crearíamos una nueva clase
+  // y el resto del código funcionaría sin cambios.
 ];
 
-// Usamos las clases para procesar a cada empleado
+// El código que consume a los empleados ahora es mucho más simple y directo.
 employees.forEach(employee => {
-  const bonus = bonusCalculator.calculateBonus(employee);
-  const report = reportGenerator.generateReportLine(employee);
+  // Ya no necesitamos una clase externa. Llamamos al método directamente.
+  const bonus = employee.calculateBonus();
+  const report = employee.getReportLine();
 
   console.log(report);
   console.log(`  -> Bono calculado: $${bonus}\n`);
 });
 
 console.log("--- Fin de la demo ---");
+
